@@ -2,11 +2,11 @@ import React, { useState, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useDidUpdate, mergeRefs } from '@mantine/hooks';
 
-function getAutoHeightDuration(height: number | string) {
-  if (!height || typeof height === 'string') {
+function getAutoSizeDuration(spanSize: number | string) {
+  if (!spanSize || typeof spanSize === 'string') {
     return 0;
   }
-  const constant = height / 36;
+  const constant = spanSize / 36;
   return Math.round((4 + 15 * constant ** 0.25 + constant / 5) * 10);
 }
 
@@ -16,6 +16,12 @@ export function getElementHeight(
   return el?.current ? el.current.scrollHeight : 'auto';
 }
 
+export function getElementWidth(
+  el: React.RefObject<HTMLElement> | { current?: { scrollWidth: number } }
+) {
+  return el?.current ? el.current.scrollWidth : 'auto';
+}
+
 const raf = typeof window !== 'undefined' && window.requestAnimationFrame;
 
 interface UseCollapse {
@@ -23,6 +29,7 @@ interface UseCollapse {
   transitionDuration?: number;
   transitionTimingFunction?: string;
   onTransitionEnd?: () => void;
+  direction?: 'y' | 'x'
 }
 
 interface GetCollapseProps {
@@ -38,12 +45,15 @@ export function useCollapse({
   transitionTimingFunction = 'ease',
   onTransitionEnd = () => {},
   opened,
+  direction='y'
 }: UseCollapse): (props: GetCollapseProps) => Record<string, any> {
   const el = useRef<HTMLElement | null>(null);
-  const collapsedHeight = 0;
+  const collapsedSize = 0;
+  const transitionProp = direction === 'y' ? 'height' : 'width'
   const collapsedStyles = {
     display: 'none',
-    height: 0,
+    height: direction === 'y' ? 0 : undefined,
+    width: direction === 'x' ? 0 : undefined,
     overflow: 'hidden',
   };
   const [styles, setStylesRaw] = useState<React.CSSProperties>(opened ? {} : collapsedStyles);
@@ -55,49 +65,49 @@ export function useCollapse({
     setStyles((oldStyles) => ({ ...oldStyles, ...newStyles }));
   };
 
-  function getTransitionStyles(height: number | string): {
+  function getTransitionStyles(spanSize: number | string): {
     transition: string;
   } {
-    const _duration = transitionDuration || getAutoHeightDuration(height);
+    const _duration = transitionDuration || getAutoSizeDuration(spanSize);
     return {
-      transition: `height ${_duration}ms ${transitionTimingFunction}`,
+      transition: `${transitionProp} ${_duration}ms ${transitionTimingFunction}`,
     };
   }
 
   useDidUpdate(() => {
     if (opened) {
       raf(() => {
-        mergeStyles({ willChange: 'height', display: 'block', overflow: 'hidden' });
+        mergeStyles({ willChange: transitionProp, display: 'block', overflow: 'hidden' });
         raf(() => {
-          const height = getElementHeight(el);
-          mergeStyles({ ...getTransitionStyles(height), height });
+          const size = direction === 'y' ? getElementHeight(el) : getElementWidth(el);
+          mergeStyles({ ...getTransitionStyles(size), [transitionProp]: size });
         });
       });
     } else {
       raf(() => {
-        const height = getElementHeight(el);
-        mergeStyles({ ...getTransitionStyles(height), willChange: 'height', height });
-        raf(() => mergeStyles({ height: collapsedHeight, overflow: 'hidden' }));
+        const size = direction === 'y' ? getElementHeight(el) : getElementWidth(el);
+        mergeStyles({ ...getTransitionStyles(size), willChange: transitionProp, [transitionProp]: size });
+        raf(() => mergeStyles({ [transitionProp]: collapsedSize, overflow: 'hidden' }));
       });
     }
   }, [opened]);
 
   const handleTransitionEnd = (e: React.TransitionEvent): void => {
-    if (e.target !== el.current || e.propertyName !== 'height') {
+    if (e.target !== el.current || e.propertyName !== transitionProp) {
       return;
     }
 
     if (opened) {
-      const height = getElementHeight(el);
+      const size = direction === 'y' ? getElementHeight(el) : getElementWidth(el);
 
-      if (height === styles.height) {
+      if (size === styles[transitionProp]) {
         setStyles({});
       } else {
-        mergeStyles({ height });
+        mergeStyles({ [transitionProp]: size });
       }
 
       onTransitionEnd();
-    } else if (styles.height === collapsedHeight) {
+    } else if (styles[transitionProp] === collapsedSize) {
       setStyles(collapsedStyles);
       onTransitionEnd();
     }

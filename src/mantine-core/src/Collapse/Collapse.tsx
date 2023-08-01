@@ -22,6 +22,9 @@ export interface CollapseProps extends DefaultProps, React.ComponentPropsWithout
 
   /** Should opacity be animated */
   animateOpacity?: boolean;
+
+  /** What direction should the collapse animate */
+  direction?: 'y' | 'x'
 }
 
 const defaultProps: Partial<CollapseProps> = {
@@ -39,6 +42,7 @@ export const Collapse = forwardRef<HTMLDivElement, CollapseProps>((props, ref) =
     style,
     onTransitionEnd,
     animateOpacity,
+    direction='y',
     ...others
   } = useComponentDefaultProps('Collapse', defaultProps, props);
   const theme = useMantineTheme();
@@ -53,6 +57,7 @@ export const Collapse = forwardRef<HTMLDivElement, CollapseProps>((props, ref) =
     transitionDuration: duration,
     transitionTimingFunction,
     onTransitionEnd,
+    direction,
   });
 
   if (duration === 0) {
